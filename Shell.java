@@ -1,41 +1,48 @@
 import java.util.*;
 
 class Shell {
+	
+	public static final char BACK_QUOTE = '`';
+	
 	public static void main(String[] args) {
 		String A = "echo a;ls;;";
 		String B = "echo a b; ls|grep a |    grep e;echo   'abc \"jn\" \"cba'; echo 123;";
 		String C = "echo a\"b c\"";
-		String D = "";
+		String D = ";;;;;";
 		String E = "echo `echo 123`; echo `ls`";
+		String F = "echo a";
+		String G = "echo a;";
+		String H = "echo a; ls;>a";
 		
 		// check back quote before tokenization
 		// e.g. echo "this is space: `echo " "`" -> echo "this is space:  "
-		String cmd = backquotedSubstitution(B);
+		String cmd = backquotedSubstitution(F);
 		parseCommand(cmd);
 	}
 	
 	public static void parseCommand(String cmd){
 		ArrayList<String> tokens = tokenize(cmd);
-		System.out.println(tokens.toString());
+		//print tokens
+		System.out.println("==token== "+tokens.toString());
 		syn1(tokens, 0, tokens.size());
 	}
 	
 	public static String backquotedSubstitution(String cmd){
-		if (!cmd.contains("`")){
+		if (cmd.indexOf(BACK_QUOTE) == -1){
 			return cmd;
 		}else{
-			int fromIdx = cmd.indexOf('`');
-			int toIdx = cmd.indexOf('`', fromIdx+1);
+			int fromIdx = cmd.indexOf(BACK_QUOTE);
+			int toIdx = cmd.indexOf(BACK_QUOTE, fromIdx+1);
 			if(toIdx != -1){
 				// parse backquoted command
 				String backquoteCmd = cmd.substring(fromIdx+1, toIdx);
 				parseCommand(backquoteCmd);
 				
-				// TODO execute command
+				// TODO execute command and get result
 				
 				// substitution
 				String newCmd = cmd.substring(0,fromIdx)+"[===]"+cmd.substring(toIdx+1);
-				System.out.println("[New command] "+newCmd);
+				//System.out.println("[New command] "+newCmd);
 				return backquotedSubstitution(newCmd);
 			}else{
 				// exception
@@ -82,6 +89,23 @@ class Shell {
 						tokens.add(currentWord.toString());
 						currentWord = new StringBuilder();
 					}
+					if(tokens.size() > 0 && tokens.get(tokens.size() - 1).equals(";")){
+						String unexpectedToken = "";
+						if(c == ';' || c == '|'){
+							switch(c){
+								case ';':
+									unexpectedToken = ";;";
+									break;
+								case '|':
+									unexpectedToken = "|";
+									break;
+							}
+							// TODO exception
+							System.out.println("[Exception] unexpected token `" + unexpectedToken+"'");
+							System.exit(1);
+						}
+					}
+					// append to parsed tokens
 					tokens.add(Character.toString(c));
 					currentWord = new StringBuilder();
 					continue;
@@ -108,7 +132,7 @@ class Shell {
 		}
 		for(int i = start; i < end; i++){
 			if(tokens.get(i).equals(";")){
-				syn2(tokens, start, i+1);
+				syn2(tokens, start, i);
 				syn1(tokens, i+1, end);
 				return;
 			}
@@ -127,14 +151,14 @@ class Shell {
 		}
 		for(int i = start; i < end; i++){
 			if(tokens.get(i).equals("|")){
-				syn3(tokens, start, i+1);
-				System.out.print(" -> ");
+				System.out.print("  -> ");
+				syn3(tokens, start, i);
 				syn2(tokens, i+1, end);
 				return;
 			}
 		}
+		System.out.print(" => ");
 		syn3(tokens, start, end);
-		System.out.println();
 	}
 	
 	/*
@@ -143,12 +167,38 @@ class Shell {
 	 * word [ < in ] [ > out ]
 	 */
 	public static void syn3(ArrayList<String> tokens, int start, int end){
+		int numOfArgs = end-start-1;
+
 		// temp print {} as execution
-		System.out.print("{");
-		for(int i = start; i < end; i++){
-			System.out.print(tokens.get(i)+" ");
+		String app = tokens.get(start);
+		String[] args = new String[numOfArgs];
+		for(int i = 1; i<= numOfArgs; i++){
+			args[i-1] = tokens.get(start+i);
 		}
-		System.out.print("}");
+		runApp(app, args);
+	}
+	
+	// runApp for debugging
+	public static void runApp(String app, String[] argsArray){
+		if(app.equals("echo")){
+			echo(argsArray);
+		}else{
+			System.out.print(app+"[ ");
+			for(int i = 0; i < argsArray.length; i++){
+				System.out.print(argsArray[i]+" ");
+			}
+			System.out.println("]");
+		}
+	}
+	
+	
+	// TEMP APP for debugging
+	public static void echo(String args[]){
+		StringBuilder str = new StringBuilder();
+		for(int i = 0; i < args.length; i++){
+			str.append(args[i]+" ");
+		}
+		System.out.println(str.toString().trim());
 	}
 	
 }
